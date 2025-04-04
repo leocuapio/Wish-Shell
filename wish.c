@@ -13,30 +13,41 @@ char * path[BUFF_SIZE] = {"/bin", "/usr/bin", NULL};
 int paths_num = 2; 
 
 void error();
+void check_path(char *fullpath, char *args[]);
+void builtin_check(char *args[]);
 
 int main (int argc, char * argv[]){
       while(1){
-        printf("PROMPT>");
+        printf("WISH>");
         FILE * stream = stdin;
         char * line = NULL;
         size_t len = 0;
         ssize_t nread;
 
-        nread = getline(&line, &len, stream);
-        printf("Retrieved line of length %zd:\n", nread);
-        printf("This is the line I received:\n%s\nCool right\n", line);
 
-        printf("NOW I WILL NEED TO REMOVE THE NEW LINE CHARACTER\n");
+        char * found;
+        char fullpath[BUFF_SIZE];
+
+        nread = getline(&line, &len, stream);
+        int size = strlen(line);
+        line[size - 1] = '\0';
+
         int rc = fork(); 
         if (rc<0){ //check if fork failed
             printf("Fork Failed\n");
         }
         else if (rc ==0){ //Child Process
             char * args[BUFF_SIZE];
-            args[0] = line;
-            args[1] = NULL; // null terminated array
-            fclose(stdout);
-            int fd = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+
+            // Parse user input (strsep)
+            int i = 0;
+            while( (found = strsep(&line," ")) != NULL ) {
+                args[i] = found;
+                i+=1;
+            }
+
+            check_path(fullpath, args);
+
             execv(args[0], args);
             error();
             exit(1); // exit the child to return back to parent. 
@@ -45,13 +56,37 @@ int main (int argc, char * argv[]){
             wait(NULL);
         }
 
+      }
+    }
+
+
+    //Functions 
+
+    void error(){
+        char error_message[30] = "An error has occurred\n";
+        write(STDERR_FILENO, error_message, strlen(error_message)); 
+    }
+
+    void check_path(char *fullpath, char *args[]) {
+        for (int j =0; path[j] != NULL; ++j) {
+            snprintf(fullpath, BUFF_SIZE, "%s/%s", path[j],args[0]);
+            if (access(fullpath, X_OK) == 0){
+                args[0] = fullpath;
+                break;
+                }
+            }
+    }
+
+    void builtin_check (char *args[]) {
+        // First check for exit
+        if ((strcmp(args[0], "exit") == 0) && args[1]) {
+            error();
         }
-      
-    
-}
+        if ((strcmp(args[0], "exit") == 0) && !args[1]) {
+            exit(EXIT_SUCCESS);
+        }
+        // Second check for cd
 
-
-void error(){
-    char error_message[30] = "An error has occurred\n";
-    write(STDERR_FILENO, error_message, strlen(error_message)); 
-}
+        // Third check for path
+    }
+     
