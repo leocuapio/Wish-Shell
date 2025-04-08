@@ -1,4 +1,5 @@
 README.md
+out.txt
 output.txt
 test-wish.sh
 tests
